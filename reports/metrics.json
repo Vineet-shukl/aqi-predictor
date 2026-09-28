@@ -1,0 +1,117 @@
+{
+  "owner": "Vineet Shukla",
+  "target": "pm25",
+  "target_unit": "\u00b5g/m\u00b3",
+  "task": "Predict city-day PM2.5 on date t using only observations from dates before t",
+  "best_model": "random_forest",
+  "comparison": [
+    {
+      "model": "naive_persistence",
+      "mae": "11.880",
+      "rmse": "21.085",
+      "r2": "0.783",
+      "n_test": 7288
+    },
+    {
+      "model": "linear_regression",
+      "mae": "12.533",
+      "rmse": "20.579",
+      "r2": "0.793",
+      "n_test": 7288
+    },
+    {
+      "model": "random_forest",
+      "mae": "11.962",
+      "rmse": "20.153",
+      "r2": "0.802",
+      "n_test": 7288
+    },
+    {
+      "model": "hist_gradient_boosting",
+      "mae": "12.473",
+      "rmse": "20.279",
+      "r2": "0.799",
+      "n_test": 7288
+    }
+  ],
+  "cutoff_date": "2019-05-27",
+  "train_date_min": "2015-01-02",
+  "train_date_max": "2019-05-26",
+  "test_date_min": "2019-05-27",
+  "test_date_max": "2020-07-01",
+  "n_train": 15760,
+  "n_test": 7288,
+  "n_cities_train": 19,
+  "cities": [
+    "Ahmedabad",
+    "Amaravati",
+    "Amritsar",
+    "Bengaluru",
+    "Brajrajnagar",
+    "Chennai",
+    "Delhi",
+    "Gurugram",
+    "Guwahati",
+    "Hyderabad",
+    "Jaipur",
+    "Jorapokhar",
+    "Kolkata",
+    "Lucknow",
+    "Mumbai",
+    "Patna",
+    "Talcher",
+    "Thiruvananthapuram",
+    "Visakhapatnam"
+  ],
+  "cities_excluded_from_test": [
+    "Aizawl",
+    "Bhopal",
+    "Chandigarh",
+    "Coimbatore",
+    "Ernakulam",
+    "Kochi",
+    "Shillong"
+  ],
+  "features": [
+    "city",
+    "pm25_lag_1",
+    "pm25_lag_2",
+    "pm25_lag_3",
+    "pm25_lag_7",
+    "pm25_lag_14",
+    "pm25_roll_mean_7",
+    "pm25_roll_mean_14",
+    "pm25_roll_std_7",
+    "pm25_delta_1",
+    "pm10_lag_1",
+    "no2_lag_1",
+    "no_lag_1",
+    "co_lag_1",
+    "so2_lag_1",
+    "o3_lag_1",
+    "month",
+    "dayofweek",
+    "month_sin",
+    "month_cos"
+  ],
+  "selection_rule": "lowest test RMSE among trained models (naive_persistence is scored but not served); ties break on higher R\u00b2, then lower MAE",
+  "test_fraction": 0.2,
+  "data_sha256": "0d84b21c3e4878bbad8df362f2ab05f61ad959538dddf5918e714077ed3c1847",
+  "sklearn_version": "1.5.2",
+  "trained_at": "2026-09-28T19:12:37+00:00",
+  "best_model_pre_lockdown": {
+    "mae": "13.164",
+    "rmse": "22.061",
+    "r2": "0.800",
+    "n": "5507"
+  },
+  "best_model_from_lockdown": {
+    "mae": "8.246",
+    "rmse": "12.537",
+    "r2": "0.588",
+    "n": "1781"
+  },
+  "lockdown_split_date": "2020-03-25",
+  "example_actual_pm25": 64.66,
+  "model_bytes": 1169745
+}

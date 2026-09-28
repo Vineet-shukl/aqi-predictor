@@ -1,0 +1,16 @@
+{
+  "top_city": "Patna",
+  "top_city_mean_pm25": "123.50",
+  "top_city_median_pm25": "91.12",
+  "top_city_mean_aqi": "240.78",
+  "top_city_n_days": 1537,
+  "lowest_city": "Aizawl",
+  "lowest_city_mean_pm25": "17.13",
+  "highest_season": "Winter",
+  "highest_season_mean_pm25": "100.24",
+  "pm25_pm10_corr": "0.846",
+  "pm25_aqi_corr": "0.659",
+  "pm25_missing_pct": "15.57",
+  "pm10_missing_pct": "37.72",
+  "xylene_missing_pct": "61.32"
+}
