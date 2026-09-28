@@ -1,0 +1,30 @@
+{
+  "mae": 7.55,
+  "rmse": 9.79,
+  "persistence_mae": 8.6,
+  "n_train": 5272,
+  "n_test": 1319,
+  "holdout": "last 20% of consecutive hours, in time order",
+  "site": "UCI Air Quality roadside station, Italy, March 2004\u2013April 2005",
+  "features": [
+    "current_aqi",
+    "hour_sin",
+    "hour_cos",
+    "month_sin",
+    "month_cos",
+    "temperature_c",
+    "relative_humidity"
+  ],
+  "current_aqi": {
+    "min": 2,
+    "max": 115
+  },
+  "temperature_c": {
+    "min": -1.9,
+    "max": 44.6
+  },
+  "relative_humidity": {
+    "min": 9.2,
+    "max": 88.7
+  }
+}
