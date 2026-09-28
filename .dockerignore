@@ -1,0 +1,14 @@
+.venv
+.git
+.pytest_cache
+.ruff_cache
+.ipynb_checkpoints
+**/__pycache__
+tests
+notebooks
+reports
+data
+sql
+.github
+*.md
+!deploy/huggingface/README.md
