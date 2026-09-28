@@ -19,5 +19,6 @@ COPY --chown=user:user models ./models
 USER user
 EXPOSE 7860
 
-# Hugging Face Docker Spaces route to port 7860. Cloud Run injects $PORT (8080).
-CMD ["sh", "-c", "exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT}"]
+# Hugging Face Docker Spaces expect 7860. Render injects PORT (default 10000).
+# Cloud Run injects PORT (8080). An unset PORT falls back to 7860.
+CMD ["sh", "-c", "exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-7860}"]

@@ -1,9 +1,8 @@
 name: Deploy Hugging Face Space
 
+# Manual only. Docker Spaces on free cpu-basic return HTTP 402 unless the
+# Hugging Face account has a PRO subscription, so this does not run on push.
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
 
 # One deploy at a time. A later push waits instead of racing the upload.

@@ -1,0 +1,13 @@
+# Free Docker web service. Render sets PORT (default 10000).
+# The image listens on ${PORT:-7860}. Apply this Blueprint from the Render dashboard.
+services:
+  - type: web
+    name: aqi-predictor
+    runtime: docker
+    plan: free
+    region: singapore
+    branch: main
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    # Deploy on each push to main. `commit` is the current form of autoDeploy: true.
+    autoDeployTrigger: commit

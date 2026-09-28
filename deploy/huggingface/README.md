@@ -23,6 +23,6 @@ The model was trained on the public CPCB city-day file (2015-01-01 to 2020-07-01
 
 This repository does not declare a software license, so the card license is `unknown`. The training file is the public CPCB extract documented as CC0 in the GitHub repository.
 
-Auto-deployed from `main` on [Vineet-shukl/aqi-predictor](https://github.com/Vineet-shukl/aqi-predictor).
+A manual GitHub Actions run (`workflow_dispatch` on `.github/workflows/deploy-hf.yml`) uploads this Space from [Vineet-shukl/aqi-predictor](https://github.com/Vineet-shukl/aqi-predictor). Docker Spaces on free cpu-basic require a Hugging Face PRO subscription.
 
 Author: Vineet Shukla
