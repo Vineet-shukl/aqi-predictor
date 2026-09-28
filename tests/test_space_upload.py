@@ -121,13 +121,6 @@ def test_token_value_is_not_printed(
     assert redact(f"failed with {secret}", secret) == "failed with [REDACTED]"
 
 
-def test_readme_documents_the_live_space():
-    readme = (ROOT / "README.md").read_text(encoding="utf-8")
-    assert "https://huggingface.co/spaces/Pandaisop/aqi-predictor" in readme
-    assert "https://pandaisop-aqi-predictor.hf.space/docs" in readme
-    assert "auto-deployed from `main`" in readme
-
-
 def test_health_classifier_accepts_only_ok_json():
     assert health_is_ok(200, '{"status":"ok","model_name":"random_forest"}')
     assert not health_is_ok(503, '{"status":"ok"}')

@@ -2,7 +2,7 @@
 
 Author: **Vineet Shukla**, 3rd-year B.Tech CSE. Portfolio project for data science and machine learning internships.
 
-This repository forecasts **next-day PM2.5** for Indian cities from the public CPCB city-day file (2015-01-01 to 2020-07-01) and maps that concentration to the CPCB PM2.5 sub-index category. It is a historical model, not a live air-quality feed. The API is auto-deployed from `main` to a Hugging Face Docker Space. This repository contains no credentials.
+This repository forecasts **next-day PM2.5** for Indian cities from the public CPCB city-day file (2015-01-01 to 2020-07-01) and maps that concentration to the CPCB PM2.5 sub-index category. It is a historical model, not a live air-quality feed. The intended host is a Render free web service, defined in `render.yaml` and applied once from the Render dashboard. This repository contains no credentials.
 
 The API serves a **random forest**, the trained model with the lowest test RMSE. A naive persistence baseline is still in the comparison. It is very strong on daily PM2.5 because of autocorrelation, and the trained models beat it only modestly.
 
@@ -35,7 +35,7 @@ flowchart LR
   end
 ```
 
-`GET /health` and `POST /predict` are served by FastAPI. Interactive docs are at `/docs` (local default `http://127.0.0.1:8000/docs`). The auto-deployed Space docs are at https://pandaisop-aqi-predictor.hf.space/docs.
+`GET /health` and `POST /predict` are served by FastAPI. Interactive docs are at `/docs` (local default `http://127.0.0.1:8000/docs`). After the Render Blueprint is applied, the expected docs URL pattern is https://aqi-predictor.onrender.com/docs. Render assigns the exact subdomain, and it may differ.
 
 ## Dataset
 
@@ -193,7 +193,7 @@ curl -s -X POST http://127.0.0.1:8000/predict \
 {"city":"Delhi","date":"2019-05-27","predicted_pm25":63.88,"aqi_subindex":112.9,"aqi_category":"Moderate","model_name":"random_forest","aqi_basis":"CPCB PM2.5 sub-index"}
 ```
 
-Those two JSON bodies are the responses from this service on 127.0.0.1:8000, using the committed example request. `/docs` is the Swagger UI. `/redoc` is the ReDoc view. The same routes on the auto-deployed Space are `https://pandaisop-aqi-predictor.hf.space/health`, `https://pandaisop-aqi-predictor.hf.space/predict`, and `https://pandaisop-aqi-predictor.hf.space/docs`. Unknown cities, negative concentrations, and a history that skips the calendar day before the forecast date return HTTP 422. Send up to 60 prior days; 14 complete days are enough to fill the rolling features. Pollutant fields other than `pm25` may be null.
+Those two JSON bodies are the responses from this service on 127.0.0.1:8000, using the committed example request. `/docs` is the Swagger UI. `/redoc` is the ReDoc view. Unknown cities, negative concentrations, and a history that skips the calendar day before the forecast date return HTTP 422. Send up to 60 prior days; 14 complete days are enough to fill the rolling features. Pollutant fields other than `pm25` may be null.
 
 The category uses CPCB 24-hour PM2.5 bands: Good ≤30, Satisfactory ≤60, Moderate ≤90, Poor ≤120, Very Poor ≤250, otherwise Severe. The numeric sub-index is the published piecewise linear map, extrapolated past 380 µg/m³ with the last segment's slope. It is not the multi-pollutant AQI.
 
@@ -210,62 +210,49 @@ GitHub Actions (`.github/workflows/ci.yml`) runs Ruff and pytest on push and on 
 
 ## Deployment
 
-The API is auto-deployed from `main` to the Hugging Face Docker Space **Pandaisop/aqi-predictor**. No AWS account is used. The only deploy credential is the GitHub Actions secret `HF_TOKEN`, a fine-grained Hugging Face write token for the user **Pandaisop**. That token is not stored in this repository.
+Render is the primary host: one free Docker web service, defined in `render.yaml`. The free tier does not require a card. The service sleeps when it is idle, and the next request waits through a cold start of about a minute. After the one-time Blueprint apply below, Render builds this Dockerfile on each push to `main`.
 
-- Space page: https://huggingface.co/spaces/Pandaisop/aqi-predictor
-- API docs: https://pandaisop-aqi-predictor.hf.space/docs
+The process listens on `$PORT`. Render sets `PORT` (default 10000). The image command is `uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-7860}`, so an unset `PORT` uses 7860.
 
-### Hugging Face Space (Docker SDK)
+### Render
 
-`.github/workflows/deploy-hf.yml` runs on every push to `main` and on `workflow_dispatch`. It waits for Ruff and pytest in the same workflow, then checks the upload set, then uploads. A concurrency group keeps overlapping deploys from running at the same time.
+1. Sign in to [render.com](https://render.com) with GitHub.
+2. Choose **New > Blueprint**.
+3. Pick **Vineet-shukl/aqi-predictor**.
+4. Apply.
 
-1. The `test` job installs `requirements.txt` and runs `ruff check .` and `pytest -q`.
-2. The `verify-upload` job copies only the files listed below into a temporary directory, starts uvicorn from that directory, and curls `/health` and `/predict` with `reports/api_example_request.json`. It then builds the Docker image from that same directory and curls the container.
-3. `deploy/huggingface/push_space.py` reads `HF_TOKEN` from the environment. If the variable is missing or empty, the job fails with that message. The script calls `create_repo('Pandaisop/aqi-predictor', repo_type='space', space_sdk='docker', exist_ok=True, token=...)` and uploads the staged directory with `huggingface_hub` 2.0.0. The token is not printed.
-4. Stale files already in the Space that are not in this upload are removed with `delete_patterns`. `README.md` is never one of those patterns.
-5. The `smoke` job polls `https://pandaisop-aqi-predictor.hf.space/health` for up to 10 minutes. If the Space is still building, the job prints a warning and still succeeds.
+`render.yaml` declares one web service:
 
-Files uploaded to the Space:
-
-| Repo path | Path in the Space |
+| Field | Value |
 | --- | --- |
-| `Dockerfile` | `Dockerfile` |
-| `requirements.txt` | `requirements.txt` |
-| `app/` | `app/` |
-| `src/` | `src/` |
-| `models/metadata.json` | `models/metadata.json` |
-| `models/pm25_model.joblib` | `models/pm25_model.joblib` |
-| `deploy/huggingface/README.md` | `README.md` |
+| Name | `aqi-predictor` |
+| Runtime | `docker` (this repo's `Dockerfile`) |
+| Plan | `free` |
+| Region | `singapore` |
+| Health check | `/health` |
+| Branch | `main` |
+| Auto-deploy | `autoDeployTrigger: commit` (each push to `main`) |
 
-The process loads `models/pm25_model.joblib` and `models/metadata.json` when `app.main` is imported. It does not read `data/city_day.csv` or `reports/`, so those stay in this repository and are not uploaded.
+Expected docs URL pattern: https://aqi-predictor.onrender.com/docs. Render assigns the exact subdomain, and it may differ. Health is `/health` on the same host. `/predict` accepts the same JSON body as the local example.
 
-`deploy/huggingface/README.md` is the Space card. Its front matter is:
-
-```yaml
----
-title: India PM2.5 Predictor
-emoji: 🌫️
-colorFrom: blue
-colorTo: green
-sdk: docker
-app_port: 7860
-pinned: false
-license: unknown
----
-```
-
-`license: unknown` is a Hugging Face card license identifier. This repository does not declare a software license, so that is the value written on the Space. The image runs as uid 1000, which Hugging Face Docker Spaces expect. `ENV PORT=7860` is the default. Local check of the same Dockerfile:
+Local check with Render's default port:
 
 ```bash
 docker build -t aqi-predictor .
-docker run --rm -p 7860:7860 aqi-predictor
+docker run --rm -e PORT=10000 -p 10000:10000 aqi-predictor
 ```
 
-Then open `http://127.0.0.1:7860/docs`.
+Then open `http://127.0.0.1:10000/docs`.
 
-### Google Cloud Run
+### Hugging Face Space (needs a PRO plan)
 
-Cloud Run sets `PORT` (8080 by default). The image command is `uvicorn app.main:app --host 0.0.0.0 --port ${PORT}`, so the same Dockerfile follows that variable. From a machine where you are already logged in with `gcloud` (this repo does not log in for you):
+`.github/workflows/deploy-hf.yml` runs only on `workflow_dispatch`. It does not run on push to `main`. `deploy/huggingface/push_space.py` is unchanged: it reads `HF_TOKEN`, creates the Docker Space `Pandaisop/aqi-predictor` when the token is present, and uploads the serving files. A missing token fails the job. The token is the GitHub Actions secret `HF_TOKEN` and is not stored in this repository.
+
+Docker Spaces on free `cpu-basic` hardware require a Hugging Face PRO subscription. `create_repo` returns HTTP 402 without that plan. This repository does not treat that Space as a live API. The workflow still runs Ruff, pytest, and a Docker check of the upload set before it calls the Hub, then polls the Space health URL for up to 10 minutes and warns if the build is still running.
+
+### Google Cloud Run (needs a billing account)
+
+Cloud Run needs a billing account on the Google Cloud project. It sets `PORT` (8080 by default). The same `${PORT:-7860}` command follows that variable. From a machine where you are already logged in with `gcloud` (this repo does not log in for you):
 
 ```bash
 gcloud run deploy aqi-predictor \
@@ -314,9 +301,10 @@ notebooks/eda.ipynb         executed EDA
 reports/figures/            plots
 reports/metrics.json        model comparison
 models/pm25_model.joblib    selected model
-deploy/huggingface/README.md       Space front matter
-deploy/huggingface/push_space.py    upload to the Space
+render.yaml                         Render free web service
+deploy/huggingface/README.md        Space front matter
+deploy/huggingface/push_space.py    manual upload to the Space
 .github/workflows/ci.yml            ruff and pytest
-.github/workflows/deploy-hf.yml     deploy the Space from main
-Dockerfile                          port 7860, uid 1000
+.github/workflows/deploy-hf.yml     manual Space deploy (PRO)
+Dockerfile                          PORT, default 7860, uid 1000
 ```
