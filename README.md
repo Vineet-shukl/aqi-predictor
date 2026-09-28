@@ -4,7 +4,7 @@ Author: **Vineet Shukla**, 3rd-year B.Tech CSE. Portfolio project for data scien
 
 This repository forecasts **next-day PM2.5** for Indian cities from the public CPCB city-day file (2015-01-01 to 2020-07-01) and maps that concentration to the CPCB PM2.5 sub-index category. It is a historical model, not a live air-quality feed. Nothing here is deployed, and the repo contains no credentials.
 
-The saved model is **naive persistence** (yesterday's PM2.5). On a time-based holdout it has the lowest MAE of the four methods compared below. Random forest has a slightly lower RMSE and a slightly higher R². That comparison is reported as it was measured.
+The API serves a **random forest**, the trained model with the lowest test RMSE. A naive persistence baseline is still in the comparison. It is very strong on daily PM2.5 because of autocorrelation, and the trained models beat it only modestly.
 
 ## Architecture
 
@@ -165,11 +165,13 @@ Test metrics from `reports/metrics.json` (sklearn 1.5.2):
 | random_forest | 11.962 | 20.153 | 0.802 |
 | hist_gradient_boosting | 12.473 | 20.279 | 0.799 |
 
-Selection rule: lowest test MAE, then lowest test RMSE. **naive_persistence** wins. `python -m src.train` writes that model to `models/pm25_model.joblib` with `models/metadata.json`.
+Selection rule: **lowest test RMSE among trained models**. `naive_persistence` is scored and kept in the table, and it is not eligible to be served. Ties break on higher R², then lower MAE. Under that rule **random_forest** wins (RMSE 20.153, R² 0.802). `python -m src.train` writes it to `models/pm25_model.joblib` with `models/metadata.json`. The compressed artifact is **1169745** bytes.
 
-On the same persistence predictions, the test period before the 2020-03-25 lockdown marker (5507 rows) has MAE 13.178, RMSE 23.022, R² 0.782. From 2020-03-25 through 2020-07-01 (1781 rows) MAE is 7.866, RMSE 13.433, and R² is 0.527. Absolute error fell while R² fell. Levels were lower in that window, so a persistence error in µg/m³ got smaller even though yesterday explains less of the remaining variation. This is a slice of the official test set, not a second model selection.
+Persistence still has the lowest MAE (11.880 versus 11.962 for the forest). The forest's RMSE gain over persistence is 20.153 versus 21.085, and its R² gain is 0.802 versus 0.783. That is a modest lift. Day-to-day PM2.5 is strongly autocorrelated, so yesterday's value is already a hard baseline. Linear regression and gradient boosting also beat persistence on RMSE and R², and both lose to the forest on all three metrics.
 
-Worked example, one held-out day, not a summary of the test MAE. Delhi on 2019-05-27: yesterday's PM2.5 (2019-05-26) was 55.13, the model predicted **55.13**, and the observed PM2.5 was **64.66**. The PM2.5 sub-index for 55.13 is 91.9, category **Satisfactory**. The request body is `reports/api_example_request.json`.
+On the random forest's test predictions, the period before the 2020-03-25 lockdown marker (5507 rows) has MAE 13.164, RMSE 22.061, R² 0.800. From 2020-03-25 through 2020-07-01 (1781 rows) MAE is 8.246, RMSE 12.537, and R² is 0.588. Absolute error fell while R² fell. Levels were lower in that window, so an error in µg/m³ got smaller even though the model explains less of the remaining variation. This slice is not a second model selection.
+
+Worked example, one held-out day, not a summary of the test metrics. Delhi on 2019-05-27: yesterday's PM2.5 (2019-05-26) was 55.13, the forest predicted **63.88**, and the observed PM2.5 was **64.66**. The PM2.5 sub-index for 63.88 is 112.9, category **Moderate**. The request body is `reports/api_example_request.json`.
 
 ## API
 
@@ -178,7 +180,7 @@ curl -s http://127.0.0.1:8000/health
 ```
 
 ```json
-{"status":"ok","model_name":"naive_persistence","n_cities":19,"target":"pm25"}
+{"status":"ok","model_name":"random_forest","n_cities":19,"target":"pm25"}
 ```
 
 ```bash
@@ -188,7 +190,7 @@ curl -s -X POST http://127.0.0.1:8000/predict \
 ```
 
 ```json
-{"city":"Delhi","date":"2019-05-27","predicted_pm25":55.13,"aqi_subindex":91.9,"aqi_category":"Satisfactory","model_name":"naive_persistence","aqi_basis":"CPCB PM2.5 sub-index"}
+{"city":"Delhi","date":"2019-05-27","predicted_pm25":63.88,"aqi_subindex":112.9,"aqi_category":"Moderate","model_name":"random_forest","aqi_basis":"CPCB PM2.5 sub-index"}
 ```
 
 Those two JSON bodies are the responses from this service on 127.0.0.1:8000, using the committed example request. `/docs` is the Swagger UI. `/redoc` is the ReDoc view. Unknown cities, negative concentrations, and a history that skips the calendar day before the forecast date return HTTP 422. Send up to 60 prior days; 14 complete days are enough to fill the rolling features. Pollutant fields other than `pm25` may be null.
@@ -267,14 +269,14 @@ gcloud run deploy aqi-predictor \
 - The returned category is the PM2.5 sub-index, not the official AQI (the max of pollutant sub-indices). Ahmedabad is the reminder: mean AQI 452.12 with mean PM2.5 67.85.
 - Seven cities never appear before the cutoff, so they are absent from `/predict`.
 - PM10 is missing on 37.72% of raw rows, so its lag is often imputed.
-- The 2020 lockdown sits inside the test window. The MAE drop on that slice is not evidence that persistence "learned" the lockdown.
+- The 2020 lockdown sits inside the test window. The MAE drop on that slice is not evidence that the forest learned the lockdown.
 - Yearly averages mix a changing set of cities with a partial final year.
 
 ## Interview notes
 
 **Why a time-based split.** Consecutive days in the same city are strongly dependent. A random row split would put 26 May in training and 27 May in test, or the reverse, and the model would be scored on neighbours it had already seen. The cutoff is one date, 2019-05-27. Every training row is earlier. Calendar fields of the target day are allowed, because the date being forecast is known when you issue the forecast. Same-day pollutants are not.
 
-**Why persistence won.** I ranked models by test MAE before looking at the table, with RMSE as the tie break. Yesterday's PM2.5 is already a strong forecast at a one-day horizon (MAE 11.880, R² 0.783). Linear regression and gradient boosting are worse on MAE. Random forest is close (MAE 11.962) and better on RMSE (20.153) and R² (0.802). I did not change the rule after seeing that. Shipping the forest because it wins two of three columns would be a second decision made on the test set. The honest deployed model is persistence, and the API still returns a PM2.5 value and a CPCB category.
+**Why the API serves a random forest, and why the baseline still matters.** The served model is the trained model with the lowest test RMSE. That is the random forest (RMSE 20.153, R² 0.802). Persistence is not in that contest, and it still wins MAE (11.880 versus 11.962) because daily PM2.5 is strongly autocorrelated: tomorrow looks a lot like today. The forest, the linear model, and gradient boosting beat persistence on RMSE and R², and only by a modest amount. The comparison table stays in the README so that gap is visible. The forest is capped at 80 trees and depth 10 so the artifact stays about 1.1 MB (1169745 bytes), well under a 50 MB limit.
 
 **What the feature code refuses to do.** Lag 1 is the previous calendar day. If that day is missing, the lag is missing. It is not the previous non-null measurement. Rolling means are computed after `shift(1)`, so today's PM2.5 cannot leak into its own features. Median imputation is inside the sklearn pipeline and is fit on the training fold only.
 

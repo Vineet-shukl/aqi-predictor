@@ -148,10 +148,10 @@
   "response": {
     "city": "Delhi",
     "date": "2019-05-27",
-    "predicted_pm25": 55.13,
-    "aqi_subindex": 91.9,
-    "aqi_category": "Satisfactory",
-    "model_name": "naive_persistence",
+    "predicted_pm25": 63.88,
+    "aqi_subindex": 112.9,
+    "aqi_category": "Moderate",
+    "model_name": "random_forest",
     "aqi_basis": "CPCB PM2.5 sub-index"
   },
   "actual_pm25": 64.66,

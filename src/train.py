@@ -45,6 +45,13 @@ EXAMPLE_REQUEST_PATH = ROOT / "reports" / "api_example_request.json"
 # Capacities are fixed before looking at test scores. Tree size is capped so the
 # committed artifact stays small.
 RANDOM_STATE = 42
+BASELINE_NAME = "naive_persistence"
+# Persistence is scored and shown. It is not eligible to be the served model.
+SELECTION_RULE = (
+    "lowest test RMSE among trained models (naive_persistence is scored but not served); "
+    "ties break on higher R², then lower MAE"
+)
+MAX_MODEL_BYTES = 50 * 1024 * 1024
 
 
 def _numeric_pipeline(scale: bool) -> Pipeline:
@@ -216,7 +223,13 @@ def main() -> None:
             f"RMSE {scores['rmse']:.3f}  R2 {scores['r2']:.3f}"
         )
 
-    best_name = min(rows, key=lambda row: (float(row["mae"]), float(row["rmse"])))["model"]
+    trained_rows = [row for row in rows if row["model"] != BASELINE_NAME]
+    if not trained_rows:
+        raise RuntimeError("No trained model available to serve")
+    best_name = min(
+        trained_rows,
+        key=lambda row: (float(row["rmse"]), -float(row["r2"]), float(row["mae"])),
+    )["model"]
     best_model = fitted[str(best_name)]
     best_pred = predictions[str(best_name)]
 
@@ -259,7 +272,7 @@ def main() -> None:
         "cities": known_cities,
         "cities_excluded_from_test": excluded,
         "features": FEATURE_COLUMNS,
-        "selection_rule": "lowest test MAE, then lowest test RMSE",
+        "selection_rule": SELECTION_RULE,
         "test_fraction": 0.2,
         "data_sha256": sha256_file(RAW_PATH),
         "sklearn_version": sklearn.__version__,
@@ -273,6 +286,10 @@ def main() -> None:
     MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
     METRICS_PATH.parent.mkdir(parents=True, exist_ok=True)
     joblib.dump(best_model, MODEL_PATH, compress=3)
+    model_bytes = MODEL_PATH.stat().st_size
+    if model_bytes > MAX_MODEL_BYTES:
+        raise RuntimeError(f"Model artifact is {model_bytes} bytes, above the 50 MB cap")
+    metadata["model_bytes"] = model_bytes
     METADATA_PATH.write_text(json.dumps(metadata, indent=2) + "\n", encoding="utf-8")
     METRICS_PATH.write_text(json.dumps(metadata, indent=2) + "\n", encoding="utf-8")
     example = {

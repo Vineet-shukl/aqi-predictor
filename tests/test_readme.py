@@ -16,6 +16,7 @@ def test_readme_copies_model_metrics():
     assert str(metrics["n_train"]) in README
     assert str(metrics["n_test"]) in README
     assert metrics["best_model"] in README
+    assert str(metrics["model_bytes"]) in README
     assert f"{metrics['n_cities_train']} cities" in README
     for key in ("best_model_pre_lockdown", "best_model_from_lockdown"):
         block = metrics[key]

@@ -3,7 +3,7 @@
   "target": "pm25",
   "target_unit": "\u00b5g/m\u00b3",
   "task": "Predict city-day PM2.5 on date t using only observations from dates before t",
-  "best_model": "naive_persistence",
+  "best_model": "random_forest",
   "comparison": [
     {
       "model": "naive_persistence",
@@ -94,23 +94,24 @@
     "month_sin",
     "month_cos"
   ],
-  "selection_rule": "lowest test MAE, then lowest test RMSE",
+  "selection_rule": "lowest test RMSE among trained models (naive_persistence is scored but not served); ties break on higher R\u00b2, then lower MAE",
   "test_fraction": 0.2,
   "data_sha256": "0d84b21c3e4878bbad8df362f2ab05f61ad959538dddf5918e714077ed3c1847",
   "sklearn_version": "1.5.2",
-  "trained_at": "2026-09-28T19:04:29+00:00",
+  "trained_at": "2026-09-28T19:12:37+00:00",
   "best_model_pre_lockdown": {
-    "mae": "13.178",
-    "rmse": "23.022",
-    "r2": "0.782",
+    "mae": "13.164",
+    "rmse": "22.061",
+    "r2": "0.800",
     "n": "5507"
   },
   "best_model_from_lockdown": {
-    "mae": "7.866",
-    "rmse": "13.433",
-    "r2": "0.527",
+    "mae": "8.246",
+    "rmse": "12.537",
+    "r2": "0.588",
     "n": "1781"
   },
   "lockdown_split_date": "2020-03-25",
-  "example_actual_pm25": 64.66
+  "example_actual_pm25": 64.66,
+  "model_bytes": 1169745
 }
